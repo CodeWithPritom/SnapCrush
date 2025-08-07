@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snapchat - Face Filter</title>
+    <title>SnapCrush - Face Filter</title>
     <style>
         * {
             margin: 0;
@@ -21,23 +21,38 @@
             touch-action: manipulation;
         }
 
-        /* --- Fullscreen Video and Canvas --- */
-        #video, #canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scaleX(-1); /* Center and mirror */
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: cover;
+        /* --- Camera Container --- */
+        .camera-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
+        /* --- Video and Canvas --- */
+        #video, #canvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #video {
+            display: none;
+        }
+
+        /* Ensure proper aspect ratio */
         @media (orientation: portrait) {
             #video, #canvas {
                 width: 100%;
                 height: auto;
+                min-height: 100%;
             }
         }
 
@@ -45,13 +60,10 @@
             #video, #canvas {
                 width: auto;
                 height: 100%;
+                min-width: 100%;
             }
         }
 
-        #video {
-            display: none;
-        }
-        
         /* --- Snapchat Header --- */
         .header-container {
             position: absolute;
@@ -304,8 +316,10 @@
     </style>
 </head>
 <body>
-    <video id="video" autoplay muted playsinline></video>
-    <canvas id="canvas"></canvas>
+    <div class="camera-container">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+    </div>
 
     <div class="header-container">
         <svg class="snapchat-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -370,6 +384,7 @@
                 this.uploadBtn = document.getElementById('uploadBtn');
                 this.closeUploadBtn = document.getElementById('closeUploadBtn');
                 this.fileInputContainer = document.getElementById('fileInputContainer');
+                this.cameraContainer = document.querySelector('.camera-container');
                 
                 this.currentFilter = 'none';
                 this.currentFacingMode = 'user';
@@ -380,10 +395,13 @@
                 this.lastFrameTime = 0;
                 this.frameInterval = 1000 / 30; // Target 30fps
                 this.rafId = null;
+                this.videoAspectRatio = 0;
+                this.canvasAspectRatio = 0;
                 
                 this.onResults = this.onResults.bind(this);
                 this.processFrame = this.processFrame.bind(this);
                 this.handleResize = this.handleResize.bind(this);
+                this.adjustVideoSize = this.adjustVideoSize.bind(this);
                 this.initializeApp();
             }
 
@@ -403,10 +421,30 @@
             }
 
             handleResize() {
-                if (this.video.videoWidth && this.video.videoHeight) {
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
+                this.adjustVideoSize();
+            }
+
+            adjustVideoSize() {
+                if (!this.video.videoWidth || !this.video.videoHeight) return;
+                
+                // Calculate aspect ratios
+                this.videoAspectRatio = this.video.videoWidth / this.video.videoHeight;
+                const containerAspectRatio = this.cameraContainer.clientWidth / this.cameraContainer.clientHeight;
+                
+                // Set canvas dimensions to match video aspect ratio
+                if (containerAspectRatio > this.videoAspectRatio) {
+                    // Container is wider than video (pillarbox)
+                    this.canvas.style.width = 'auto';
+                    this.canvas.style.height = '100%';
+                } else {
+                    // Container is taller than video (letterbox)
+                    this.canvas.style.width = '100%';
+                    this.canvas.style.height = 'auto';
                 }
+                
+                // Update canvas drawing dimensions to match video resolution
+                this.canvas.width = this.video.videoWidth;
+                this.canvas.height = this.video.videoHeight;
             }
 
             setupFileInputs() {
@@ -510,13 +548,13 @@
                     });
                     this.video.srcObject = stream;
 
-                    // Set canvas mirror based on camera
-                    this.canvas.style.transform = facingMode === 'user' ? 'translate(-50%, -50%) scaleX(-1)' : 'translate(-50%, -50%) scaleX(1)';
-
                     return new Promise((resolve) => {
                         this.video.onloadedmetadata = () => {
-                            this.canvas.width = this.video.videoWidth;
-                            this.canvas.height = this.video.videoHeight;
+                            // Set canvas mirror based on camera
+                            this.canvas.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+                            
+                            // Adjust video and canvas sizes
+                            this.adjustVideoSize();
                             
                             this.camera = new Camera(this.video, {
                                 onFrame: async () => {
@@ -585,12 +623,26 @@
             takePicture() {
                 // Create a temporary canvas for the final image
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = this.canvas.width;
-                tempCanvas.height = this.canvas.height;
+                
+                // Maintain aspect ratio in the captured image
+                if (this.videoAspectRatio > 1) {
+                    // Landscape
+                    tempCanvas.width = this.canvas.width;
+                    tempCanvas.height = this.canvas.width / this.videoAspectRatio;
+                } else {
+                    // Portrait
+                    tempCanvas.width = this.canvas.height * this.videoAspectRatio;
+                    tempCanvas.height = this.canvas.height;
+                }
+                
                 const tempCtx = tempCanvas.getContext('2d');
                 
-                // Draw the current canvas content to the temp canvas
-                tempCtx.drawImage(this.canvas, 0, 0);
+                // Draw the current canvas content to the temp canvas with correct aspect ratio
+                tempCtx.drawImage(
+                    this.canvas, 
+                    0, 0, this.canvas.width, this.canvas.height,
+                    0, 0, tempCanvas.width, tempCanvas.height
+                );
                 
                 // Create download link
                 const link = document.createElement('a');
@@ -615,7 +667,25 @@
             
             processFrame(results) {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.ctx.drawImage(results.image, 0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw the video frame maintaining aspect ratio
+                if (this.videoAspectRatio > (this.canvas.width / this.canvas.height)) {
+                    // Video is wider than canvas (letterbox)
+                    const scaledHeight = this.canvas.width / this.videoAspectRatio;
+                    this.ctx.drawImage(
+                        results.image, 
+                        0, (this.canvas.height - scaledHeight) / 2, 
+                        this.canvas.width, scaledHeight
+                    );
+                } else {
+                    // Video is taller than canvas (pillarbox)
+                    const scaledWidth = this.canvas.height * this.videoAspectRatio;
+                    this.ctx.drawImage(
+                        results.image, 
+                        (this.canvas.width - scaledWidth) / 2, 0,
+                        scaledWidth, this.canvas.height
+                    );
+                }
 
                 if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && 
                     this.currentFilter !== 'none' && this.filterImages[this.currentFilter].length > 0) {
