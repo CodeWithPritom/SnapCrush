@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SnapCrush - Face Filter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* --- Fullscreen Video and Canvas --- */
+        #video, #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #video {
+            display: none; /* We only show the canvas */
+        }
+        
+        /* --- Snapchat Header --- */
+        .header-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .snapchat-logo {
+            width: 36px;
+            height: 36px;
+            fill: white;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+        }
+
+        .snapchat-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* --- Main UI Overlay Container --- */
+        .ui-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+        }
+
+        /* --- Filter Carousel --- */
+        .filter-carousel {
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            width: 100%;
+            padding: 20px 0;
+            scrollbar-width: none; /* Firefox */
+        }
+        .filter-carousel::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        .filter-item {
+            flex: 0 0 70px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            margin: 0 5px;
+            backdrop-filter: blur(5px);
+        }
+
+        .filter-item:hover {
+            transform: scale(1.05);
+        }
+
+        .filter-item.active {
+            border-color: #fffc00; /* Snapchat yellow */
+            transform: scale(1.1);
+        }
+
+        /* --- Action Buttons Bar --- */
+        .action-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            padding: 10px 20px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 28px;
+            color: white;
+            transition: transform 0.2s ease;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+        }
+
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        #captureBtn {
+            width: 75px;
+            height: 75px;
+            background-color: white;
+            border: 5px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            filter: none;
+        }
+        #captureBtn:active {
+            transform: scale(0.95);
+        }
+
+        /* --- Status Display --- */
+        .status {
+            position: absolute;
+            top: 25px; /* Adjusted for header */
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 15px;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.4);
+            color: white;
+            font-size: 14px;
+            z-index: 20;
+            backdrop-filter: blur(5px);
+            text-align: center;
+        }
+
+        /* --- File Upload Modal --- */
+        .file-input-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            backdrop-filter: blur(10px);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .file-input-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .file-input-section {
+            background: #2c2c2e;
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            color: white;
+            text-align: center;
+        }
+
+        .file-input {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.5);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .file-input:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: white;
+        }
+        .file-input input[type="file"] {
+            display: none;
+        }
+
+        .preview-images {
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 10px; margin-top: 15px;
+        }
+
+        .preview-image {
+            width: 50px; height: 50px; object-fit: contain;
+            background: rgba(255,255,255,0.1); border-radius: 8px; padding: 5px;
+        }
+
+        #closeUploadBtn {
+            margin-top: 20px; padding: 10px 25px; border: none; border-radius: 20px;
+            background: #555; color: white; font-size: 16px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <div class="header-container">
+        <!-- Snapchat Ghost Logo SVG -->
+        <svg class="snapchat-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.2,9.3c0-3.3-2-6.5-5.3-6.5c-2.4,0-4.1,1.5-4.9,2.9c-0.8-1.4-2.5-2.9-4.9-2.9C3.8,2.8,1.8,6,1.8,9.3 c0,3.2,1.8,5.1,1.8,5.1s-1.8,2.8,0,5.6c1.2,1.9,3.1,1.9,3.1,1.9s-1.8,2.1,0.2,4.3c0.3,0.3,0.6,0.5,0.8,0.5c0.3,0,0.5-0.1,0.8-0.4 c2.3-2.5,0.2-4.3,0.2-4.3s1.9,0,3.1-1.9c1.8-2.8,0-5.6,0-5.6S22.2,12.5,22.2,9.3z M12,14.2c-2.2,0-4-1.8-4-4s1.8-4,4-4s4,1.8,4,4 S14.2,14.2,12,14.2z"/>
+        </svg>
+        <span class="snapchat-name">SnapCrush</span>
+    </div>
+
+    <div class="status" id="status">Initializing...</div>
+
+    <div class="ui-container">
+        <div class="filter-carousel" id="filterCarousel">
+            <button class="filter-item active" data-filter="none">⚪</button>
+            <button class="filter-item" data-filter="cat">🐱</button>
+            <button class="filter-item" data-filter="dog">🐶</button>
+            <button class="filter-item" data-filter="bunny">🐰</button>
+        </div>
+
+        <div class="action-bar">
+            <button class="action-btn" id="uploadBtn" title="Upload Filters">📂</button>
+            <button class="action-btn" id="captureBtn" title="Take Photo"></button>
+            <button class="action-btn" id="flipCameraBtn" title="Flip Camera">🔄</button>
+        </div>
+    </div>
+    
+    <div id="fileInputContainer" class="file-input-container hidden">
+        <div class="file-input-section">
+            <h3>Upload Your Overlay Images</h3>
+            <p>Select PNG images for best results</p>
+            
+            <div class="file-input">
+                <label for="catImages">🐱 Cat Filter Images<input type="file" id="catImages" multiple accept="image/*"></label>
+            </div>
+            <div class="file-input">
+                <label for="dogImages">🐶 Dog Filter Images<input type="file" id="dogImages" multiple accept="image/*"></label>
+            </div>
+            <div class="file-input">
+                <label for="bunnyImages">🐰 Bunny Filter Images<input type="file" id="bunnyImages" multiple accept="image/*"></label>
+            </div>
+            
+            <div class="preview-images" id="previewImages"></div>
+            <button id="closeUploadBtn">Close</button>
+        </div>
+    </div>
+    
+    <!-- MediaPipe Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+    <script>
+        class FaceFilterApp {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d', { willReadFrequently: false });
+                this.status = document.getElementById('status');
+                this.previewContainer = document.getElementById('previewImages');
+                this.captureBtn = document.getElementById('captureBtn');
+                this.flipCameraBtn = document.getElementById('flipCameraBtn');
+                this.uploadBtn = document.getElementById('uploadBtn');
+                this.closeUploadBtn = document.getElementById('closeUploadBtn');
+                this.fileInputContainer = document.getElementById('fileInputContainer');
+                
+                this.currentFilter = 'none';
+                this.currentFacingMode = 'user';
+                this.faceMesh = null;
+                this.camera = null;
+                this.filterImages = { cat: [], dog: [], bunny: [] };
+                this.isInitialized = false;
+                this.lastFrameTime = 0;
+                this.frameInterval = 1000 / 30; // Target 30fps
+                this.rafId = null;
+                
+                this.onResults = this.onResults.bind(this);
+                this.processFrame = this.processFrame.bind(this);
+                this.initializeApp();
+            }
+
+            async initializeApp() {
+                try {
+                    this.setupFileInputs();
+                    await this.setupMediaPipe();
+                    await this.setupCamera(this.currentFacingMode);
+                    this.setupEventListeners();
+                    this.updateStatus('✅ Ready! Select a filter or upload your own.');
+                    this.isInitialized = true;
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                    this.updateStatus(`❌ Error: ${error.message}`);
+                }
+            }
+
+            setupFileInputs() {
+                ['catImages', 'dogImages', 'bunnyImages'].forEach(id => {
+                    const input = document.getElementById(id);
+                    const filterType = id.replace('Images', '');
+                    input.addEventListener('change', (event) => this.handleFileUpload(event, filterType));
+                });
+            }
+
+            async handleFileUpload(event, filterType) {
+                const files = Array.from(event.target.files);
+                if (files.length === 0) return;
+                
+                this.updateStatus(`Loading ${filterType} images...`);
+                try {
+                    this.filterImages[filterType] = []; // Clear existing
+                    // Clear previous previews for this filter type
+                    this.previewContainer.querySelectorAll(`[data-filter-type="${filterType}"]`).forEach(el => el.remove());
+
+                    // Load first 3 images only for performance
+                    const filesToLoad = files.slice(0, 3);
+                    
+                    const loadPromises = filesToLoad.map(file => {
+                        if (file.type.startsWith('image/')) {
+                            return this.loadImageFromFile(file).then(img => {
+                                this.filterImages[filterType].push(img);
+                                this.addPreviewImage(img, filterType);
+                            });
+                        }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(loadPromises);
+                    this.updateStatus(`✅ Loaded ${filesToLoad.length} ${filterType} images.`);
+                } catch (error) {
+                    console.error('Error loading images:', error);
+                    this.updateStatus('❌ Error loading images.');
+                }
+            }
+
+            loadImageFromFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            addPreviewImage(img, filterType) {
+                const previewImg = document.createElement('img');
+                previewImg.src = img.src;
+                previewImg.className = 'preview-image';
+                previewImg.title = `${filterType} overlay`;
+                previewImg.dataset.filterType = filterType;
+                this.previewContainer.appendChild(previewImg);
+            }
+
+            async setupMediaPipe() {
+                this.updateStatus('Loading face detection model...');
+                this.faceMesh = new FaceMesh({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                });
+                
+                // Optimized settings for performance
+                this.faceMesh.setOptions({
+                    maxNumFaces: 1, 
+                    refineLandmarks: false, // Disable for better performance
+                    minDetectionConfidence: 0.6, // Slightly higher for better performance
+                    minTrackingConfidence: 0.6,
+                    selfieMode: true // Optimized for front camera
+                });
+                
+                this.faceMesh.onResults(this.onResults);
+            }
+
+            async setupCamera(facingMode) {
+                this.updateStatus('Accessing camera...');
+                if (this.camera) this.camera.stop();
+                if (this.video.srcObject) {
+                    this.video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                
+                // Cancel any pending animation frame
+                if (this.rafId) {
+                    cancelAnimationFrame(this.rafId);
+                    this.rafId = null;
+                }
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 640 }, // Lower resolution for better performance
+                            height: { ideal: 480 },
+                            facingMode,
+                            frameRate: { ideal: 30 } // Limit frame rate
+                        }
+                    });
+                    this.video.srcObject = stream;
+
+                    // Set canvas mirror based on camera
+                    this.canvas.style.transform = (facingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+
+                    return new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.canvas.width = this.video.videoWidth;
+                            this.canvas.height = this.video.videoHeight;
+                            
+                            // Use a more efficient camera handling approach
+                            this.camera = new Camera(this.video, {
+                                onFrame: async () => {
+                                    const now = performance.now();
+                                    if (now - this.lastFrameTime >= this.frameInterval) {
+                                        this.lastFrameTime = now;
+                                        await this.faceMesh.send({ image: this.video });
+                                    }
+                                },
+                                width: this.video.videoWidth, 
+                                height: this.video.videoHeight
+                            });
+                            this.camera.start();
+                            resolve();
+                        };
+                    });
+                } catch (error) {
+                    throw new Error('Camera access denied or not available.');
+                }
+            }
+
+            setupEventListeners() {
+                const filterCarousel = document.getElementById('filterCarousel');
+                filterCarousel.addEventListener('click', (e) => {
+                    const button = e.target.closest('.filter-item');
+                    if (button) {
+                        filterCarousel.querySelector('.active').classList.remove('active');
+                        button.classList.add('active');
+                        this.currentFilter = button.dataset.filter;
+
+                        if (this.currentFilter !== 'none' && this.filterImages[this.currentFilter].length === 0) {
+                            this.updateStatus(`⚠️ No ${this.currentFilter} images loaded. Upload some first!`);
+                        }
+                    }
+                });
+                
+                this.captureBtn.addEventListener('click', () => this.takePicture());
+                this.flipCameraBtn.addEventListener('click', () => this.switchCamera());
+                this.uploadBtn.addEventListener('click', () => this.toggleUploadPanel(true));
+                this.closeUploadBtn.addEventListener('click', () => this.toggleUploadPanel(false));
+                
+                // Optimize for mobile touch events
+                this.captureBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.captureBtn.style.transform = 'scale(0.95)';
+                });
+                this.captureBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.captureBtn.style.transform = '';
+                    this.takePicture();
+                });
+            }
+            
+            async switchCamera() {
+                this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+                this.updateStatus(`Switching to ${this.currentFacingMode} camera...`);
+                try {
+                    await this.setupCamera(this.currentFacingMode);
+                    this.updateStatus('✅ Camera switched!');
+                } catch (error) {
+                    this.updateStatus(`❌ Failed to switch camera. ${error.message}`);
+                    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user'; // Revert on failure
+                }
+            }
+            
+            takePicture() {
+                // Create a temporary canvas for the final image
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = this.canvas.width;
+                tempCanvas.height = this.canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Draw the current canvas content to the temp canvas
+                tempCtx.drawImage(this.canvas, 0, 0);
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.download = `snapchat-filter-photo-${Date.now()}.png`;
+                link.href = tempCanvas.toDataURL('image/png');
+                link.click();
+                
+                this.updateStatus('✅ Photo saved!');
+            }
+
+            toggleUploadPanel(show) {
+                this.fileInputContainer.classList.toggle('hidden', !show);
+            }
+
+            onResults(results) {
+                if (!this.isInitialized) return;
+                
+                // Use requestAnimationFrame for smoother rendering
+                this.rafId = requestAnimationFrame(() => {
+                    this.processFrame(results);
+                });
+            }
+            
+            processFrame(results) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.drawImage(results.image, 0, 0, this.canvas.width, this.canvas.height);
+
+                if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && 
+                    this.currentFilter !== 'none' && this.filterImages[this.currentFilter].length > 0) {
+                    this.applyFilter(results.multiFaceLandmarks[0]);
+                }
+            }
+            
+            applyFilter(landmarks) {
+                const images = this.filterImages[this.currentFilter];
+                if (!images || images.length === 0) return;
+
+                // Cache frequently used landmarks
+                const leftEye = landmarks[33];
+                const rightEye = landmarks[263];
+                const noseTip = landmarks[1];
+                const leftFace = landmarks[234];
+                const rightFace = landmarks[454];
+
+                const angle = Math.atan2(
+                    (rightEye.y - leftEye.y) * this.canvas.height, 
+                    (rightEye.x - leftEye.x) * this.canvas.width
+                );
+                
+                const faceWidth = Math.hypot(
+                    (rightFace.x - leftFace.x) * this.canvas.width, 
+                    (rightFace.y - leftFace.y) * this.canvas.height
+                );
+                
+                const facePoints = {
+                    noseTip: { 
+                        x: noseTip.x * this.canvas.width, 
+                        y: noseTip.y * this.canvas.height 
+                    },
+                    betweenEyes: { 
+                        x: ((leftEye.x + rightEye.x) / 2) * this.canvas.width, 
+                        y: ((leftEye.y + rightEye.y) / 2) * this.canvas.height 
+                    },
+                };
+                
+                // Limit to 3 overlay images for performance
+                const imagesToDraw = images.slice(0, 3);
+                imagesToDraw.forEach((img, index) => {
+                    this.drawOverlayImage(img, facePoints, faceWidth, angle, index);
+                });
+            }
+
+            drawOverlayImage(img, facePoints, faceWidth, angle, imageIndex) {
+                this.ctx.save();
+                
+                let scale, anchor, offsetX, offsetY, customScale;
+                
+                // Optimized positioning logic
+                if (imageIndex === 0) { // Ears/Forehead
+                    anchor = facePoints.betweenEyes;
+                    customScale = 1.6;
+                    offsetX = 0;
+                    offsetY = -faceWidth * 0.25;
+                } else if (imageIndex === 1) { // Nose/Cheeks
+                    anchor = facePoints.betweenEyes;
+                    customScale = 1.3;
+                    offsetX = 0;
+                    offsetY = faceWidth * 0.15;
+                } else { // Generic
+                    anchor = facePoints.noseTip;
+                    customScale = 0.5;
+                    const placementAngle = (imageIndex - 2) * (Math.PI / 2) + Math.PI / 4;
+                    offsetX = Math.cos(placementAngle) * faceWidth * 0.5;
+                    offsetY = Math.sin(placementAngle) * faceWidth * 0.5;
+                }
+
+                scale = (faceWidth / img.width) * customScale;
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                
+                this.ctx.translate(anchor.x, anchor.y);
+                this.ctx.rotate(angle);
+                this.ctx.drawImage(
+                    img, 
+                    offsetX - scaledWidth / 2, 
+                    offsetY - scaledHeight / 2, 
+                    scaledWidth, 
+                    scaledHeight
+                );
+                this.ctx.restore();
+            }
+
+            updateStatus(message) {
+                this.status.textContent = message;
+                if (!message.includes('❌') && !message.includes('⚠️')) {
+                    setTimeout(() => {
+                        if (this.status.textContent === message) {
+                            this.status.textContent = '';
+                        }
+                    }, 3000);
+                }
+            }
+        }
+
+        // Start the app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new FaceFilterApp();
+            
+            // Clean up on page unload
+            window.addEventListener('beforeunload', () => {
+                if (app.video.srcObject) {
+                    app.video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                if (app.rafId) {
+                    cancelAnimationFrame(app.rafId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
