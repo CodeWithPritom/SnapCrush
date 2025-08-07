@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SnapCrush - Face Filter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snapchat - Face Filter</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html, body {
@@ -16,29 +17,46 @@
             height: 100%;
             overflow: hidden;
             background: #000;
-            font-family: 'Arial', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            touch-action: manipulation;
         }
 
         /* --- Fullscreen Video and Canvas --- */
         #video, #canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scaleX(-1); /* Center and mirror */
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
             object-fit: cover;
-            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        @media (orientation: portrait) {
+            #video, #canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+
+        @media (orientation: landscape) {
+            #video, #canvas {
+                width: auto;
+                height: 100%;
+            }
         }
 
         #video {
-            display: none; /* We only show the canvas */
+            display: none;
         }
         
         /* --- Snapchat Header --- */
         .header-container {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: max(20px, env(safe-area-inset-top));
+            left: max(20px, env(safe-area-inset-left));
             z-index: 15;
             display: flex;
             align-items: center;
@@ -53,7 +71,7 @@
         }
 
         .snapchat-name {
-            font-size: 22px;
+            font-size: clamp(18px, 5vw, 22px);
             font-weight: bold;
             color: white;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
@@ -62,14 +80,14 @@
         /* --- Main UI Overlay Container --- */
         .ui-container {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: max(20px, env(safe-area-inset-bottom));
+            left: max(20px, env(safe-area-inset-left));
+            right: max(20px, env(safe-area-inset-right));
             z-index: 10;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-bottom: 20px;
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
             background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
         }
 
@@ -79,36 +97,39 @@
             overflow-x: auto;
             overflow-y: hidden;
             width: 100%;
-            padding: 20px 0;
-            scrollbar-width: none; /* Firefox */
+            padding: 10px 0;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
         }
         .filter-carousel::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none;
         }
 
         .filter-item {
-            flex: 0 0 70px;
-            width: 70px;
-            height: 70px;
+            flex: 0 0 auto;
+            width: clamp(60px, 15vw, 70px);
+            height: clamp(60px, 15vw, 70px);
             border-radius: 50%;
             background: rgba(255,255,255,0.2);
             border: 3px solid transparent;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 2em;
+            font-size: clamp(1.5em, 6vw, 2em);
             margin: 0 5px;
             backdrop-filter: blur(5px);
+            scroll-snap-align: center;
         }
 
-        .filter-item:hover {
+        .filter-item:hover, .filter-item:active {
             transform: scale(1.05);
         }
 
         .filter-item.active {
-            border-color: #fffc00; /* Snapchat yellow */
+            border-color: #fffc00;
             transform: scale(1.1);
         }
 
@@ -118,50 +139,57 @@
             justify-content: space-around;
             align-items: center;
             width: 100%;
-            padding: 10px 20px;
+            padding: 10px 5px;
         }
 
         .action-btn {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 28px;
+            font-size: clamp(24px, 7vw, 28px);
             color: white;
             transition: transform 0.2s ease;
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            padding: 8px;
+            flex: 1;
+            display: flex;
+            justify-content: center;
         }
 
-        .action-btn:hover {
-            transform: scale(1.1);
+        .action-btn:active {
+            transform: scale(0.95);
         }
 
         #captureBtn {
-            width: 75px;
-            height: 75px;
+            width: clamp(65px, 20vw, 75px);
+            height: clamp(65px, 20vw, 75px);
             background-color: white;
-            border: 5px solid rgba(0,0,0,0.3);
+            border: 4px solid rgba(0,0,0,0.3);
             border-radius: 50%;
             box-shadow: 0 0 15px rgba(0,0,0,0.3);
             filter: none;
-        }
-        #captureBtn:active {
-            transform: scale(0.95);
+            flex: 0 0 auto;
+            margin: 0 10px;
         }
 
         /* --- Status Display --- */
         .status {
             position: absolute;
-            top: 25px; /* Adjusted for header */
+            top: max(60px, calc(env(safe-area-inset-top) + 40px));
             left: 50%;
             transform: translateX(-50%);
             padding: 8px 15px;
             border-radius: 15px;
             background: rgba(0,0,0,0.4);
             color: white;
-            font-size: 14px;
+            font-size: clamp(12px, 3.5vw, 14px);
             z-index: 20;
             backdrop-filter: blur(5px);
             text-align: center;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* --- File Upload Modal --- */
@@ -179,6 +207,7 @@
             backdrop-filter: blur(10px);
             opacity: 1;
             transition: opacity 0.3s ease;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
 
         .file-input-container.hidden {
@@ -188,22 +217,36 @@
 
         .file-input-section {
             background: #2c2c2e;
-            padding: 25px;
+            padding: 20px;
             border-radius: 20px;
-            width: 90%;
+            width: calc(100% - 40px);
             max-width: 500px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
             color: white;
             text-align: center;
+            margin: 20px;
+        }
+
+        .file-input-section h3 {
+            font-size: clamp(18px, 5vw, 22px);
+            margin-bottom: 10px;
+        }
+
+        .file-input-section p {
+            font-size: clamp(14px, 4vw, 16px);
+            margin-bottom: 15px;
         }
 
         .file-input {
-            margin: 15px 0;
-            padding: 15px;
+            margin: 10px 0;
+            padding: 12px;
             background: rgba(255,255,255,0.1);
             border: 2px dashed rgba(255,255,255,0.5);
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: clamp(14px, 4vw, 16px);
         }
         .file-input:hover {
             background: rgba(255,255,255,0.2);
@@ -214,18 +257,49 @@
         }
 
         .preview-images {
-            display: flex; flex-wrap: wrap; justify-content: center;
-            gap: 10px; margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .preview-image {
-            width: 50px; height: 50px; object-fit: contain;
-            background: rgba(255,255,255,0.1); border-radius: 8px; padding: 5px;
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 5px;
         }
 
         #closeUploadBtn {
-            margin-top: 20px; padding: 10px 25px; border: none; border-radius: 20px;
-            background: #555; color: white; font-size: 16px; cursor: pointer;
+            margin-top: 15px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: #555;
+            color: white;
+            font-size: clamp(14px, 4vw, 16px);
+            cursor: pointer;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -234,14 +308,13 @@
     <canvas id="canvas"></canvas>
 
     <div class="header-container">
-        <!-- Snapchat Ghost Logo SVG -->
         <svg class="snapchat-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.2,9.3c0-3.3-2-6.5-5.3-6.5c-2.4,0-4.1,1.5-4.9,2.9c-0.8-1.4-2.5-2.9-4.9-2.9C3.8,2.8,1.8,6,1.8,9.3 c0,3.2,1.8,5.1,1.8,5.1s-1.8,2.8,0,5.6c1.2,1.9,3.1,1.9,3.1,1.9s-1.8,2.1,0.2,4.3c0.3,0.3,0.6,0.5,0.8,0.5c0.3,0,0.5-0.1,0.8-0.4 c2.3-2.5,0.2-4.3,0.2-4.3s1.9,0,3.1-1.9c1.8-2.8,0-5.6,0-5.6S22.2,12.5,22.2,9.3z M12,14.2c-2.2,0-4-1.8-4-4s1.8-4,4-4s4,1.8,4,4 S14.2,14.2,12,14.2z"/>
         </svg>
-        <span class="snapchat-name">SnapCrush</span>
+        <span class="snapchat-name">Snapchat</span>
     </div>
 
-    <div class="status" id="status">Initializing...</div>
+    <div class="status" id="status"><span class="spinner"></span>Initializing...</div>
 
     <div class="ui-container">
         <div class="filter-carousel" id="filterCarousel">
@@ -279,10 +352,10 @@
     </div>
     
     <!-- MediaPipe Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
     <script>
         class FaceFilterApp {
@@ -310,6 +383,7 @@
                 
                 this.onResults = this.onResults.bind(this);
                 this.processFrame = this.processFrame.bind(this);
+                this.handleResize = this.handleResize.bind(this);
                 this.initializeApp();
             }
 
@@ -319,11 +393,19 @@
                     await this.setupMediaPipe();
                     await this.setupCamera(this.currentFacingMode);
                     this.setupEventListeners();
+                    window.addEventListener('resize', this.handleResize);
                     this.updateStatus('✅ Ready! Select a filter or upload your own.');
                     this.isInitialized = true;
                 } catch (error) {
                     console.error('Initialization error:', error);
                     this.updateStatus(`❌ Error: ${error.message}`);
+                }
+            }
+
+            handleResize() {
+                if (this.video.videoWidth && this.video.videoHeight) {
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
                 }
             }
 
@@ -341,8 +423,7 @@
                 
                 this.updateStatus(`Loading ${filterType} images...`);
                 try {
-                    this.filterImages[filterType] = []; // Clear existing
-                    // Clear previous previews for this filter type
+                    this.filterImages[filterType] = [];
                     this.previewContainer.querySelectorAll(`[data-filter-type="${filterType}"]`).forEach(el => el.remove());
 
                     // Load first 3 images only for performance
@@ -395,13 +476,12 @@
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
                 });
                 
-                // Optimized settings for performance
                 this.faceMesh.setOptions({
                     maxNumFaces: 1, 
-                    refineLandmarks: false, // Disable for better performance
-                    minDetectionConfidence: 0.6, // Slightly higher for better performance
+                    refineLandmarks: false,
+                    minDetectionConfidence: 0.6,
                     minTrackingConfidence: 0.6,
-                    selfieMode: true // Optimized for front camera
+                    selfieMode: true
                 });
                 
                 this.faceMesh.onResults(this.onResults);
@@ -414,7 +494,6 @@
                     this.video.srcObject.getTracks().forEach(track => track.stop());
                 }
                 
-                // Cancel any pending animation frame
                 if (this.rafId) {
                     cancelAnimationFrame(this.rafId);
                     this.rafId = null;
@@ -423,23 +502,22 @@
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: { 
-                            width: { ideal: 640 }, // Lower resolution for better performance
+                            width: { ideal: 640 },
                             height: { ideal: 480 },
                             facingMode,
-                            frameRate: { ideal: 30 } // Limit frame rate
+                            frameRate: { ideal: 30 }
                         }
                     });
                     this.video.srcObject = stream;
 
                     // Set canvas mirror based on camera
-                    this.canvas.style.transform = (facingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+                    this.canvas.style.transform = facingMode === 'user' ? 'translate(-50%, -50%) scaleX(-1)' : 'translate(-50%, -50%) scaleX(1)';
 
                     return new Promise((resolve) => {
                         this.video.onloadedmetadata = () => {
                             this.canvas.width = this.video.videoWidth;
                             this.canvas.height = this.video.videoHeight;
                             
-                            // Use a more efficient camera handling approach
                             this.camera = new Camera(this.video, {
                                 onFrame: async () => {
                                     const now = performance.now();
@@ -475,20 +553,20 @@
                     }
                 });
                 
+                // Click events
                 this.captureBtn.addEventListener('click', () => this.takePicture());
                 this.flipCameraBtn.addEventListener('click', () => this.switchCamera());
                 this.uploadBtn.addEventListener('click', () => this.toggleUploadPanel(true));
                 this.closeUploadBtn.addEventListener('click', () => this.toggleUploadPanel(false));
                 
-                // Optimize for mobile touch events
-                this.captureBtn.addEventListener('touchstart', (e) => {
+                // Touch events with better mobile support
+                const touchHandler = (e) => {
                     e.preventDefault();
-                    this.captureBtn.style.transform = 'scale(0.95)';
-                });
-                this.captureBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.captureBtn.style.transform = '';
-                    this.takePicture();
+                    e.target.click();
+                };
+                
+                [this.captureBtn, this.flipCameraBtn, this.uploadBtn].forEach(btn => {
+                    btn.addEventListener('touchstart', touchHandler, { passive: false });
                 });
             }
             
@@ -500,7 +578,7 @@
                     this.updateStatus('✅ Camera switched!');
                 } catch (error) {
                     this.updateStatus(`❌ Failed to switch camera. ${error.message}`);
-                    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user'; // Revert on failure
+                    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
                 }
             }
             
@@ -530,7 +608,6 @@
             onResults(results) {
                 if (!this.isInitialized) return;
                 
-                // Use requestAnimationFrame for smoother rendering
                 this.rafId = requestAnimationFrame(() => {
                     this.processFrame(results);
                 });
@@ -590,7 +667,6 @@
                 
                 let scale, anchor, offsetX, offsetY, customScale;
                 
-                // Optimized positioning logic
                 if (imageIndex === 0) { // Ears/Forehead
                     anchor = facePoints.betweenEyes;
                     customScale = 1.6;
@@ -626,10 +702,14 @@
             }
 
             updateStatus(message) {
-                this.status.textContent = message;
+                const spinner = message.startsWith('✅') || message.startsWith('❌') || message.startsWith('⚠️') 
+                    ? '' 
+                    : '<span class="spinner"></span>';
+                this.status.innerHTML = spinner + message;
+                
                 if (!message.includes('❌') && !message.includes('⚠️')) {
                     setTimeout(() => {
-                        if (this.status.textContent === message) {
+                        if (this.status.innerHTML === spinner + message) {
                             this.status.textContent = '';
                         }
                     }, 3000);
