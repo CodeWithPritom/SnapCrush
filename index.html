@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapCrush - Face Filter</title>
+    <title>Snapcrush - Face Filter</title>
     <style>
         * {
             margin: 0;
@@ -134,6 +134,7 @@
             margin: 0 5px;
             backdrop-filter: blur(5px);
             scroll-snap-align: center;
+            position: relative;
         }
 
         .filter-item:hover, .filter-item:active {
@@ -143,6 +144,22 @@
         .filter-item.active {
             border-color: #fffc00;
             transform: scale(1.1);
+        }
+
+        .filter-item .download-badge {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            background: #fffc00;
+            color: #000;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
         }
 
         /* --- Action Buttons Bar --- */
@@ -274,6 +291,9 @@
             justify-content: center;
             gap: 8px;
             margin-top: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
         }
 
         .preview-image {
@@ -283,6 +303,13 @@
             background: rgba(255,255,255,0.1);
             border-radius: 8px;
             padding: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preview-image:hover {
+            transform: scale(1.1);
+            border: 1px solid #fffc00;
         }
 
         #closeUploadBtn {
@@ -296,6 +323,85 @@
             cursor: pointer;
             width: 100%;
             max-width: 200px;
+        }
+
+        /* Download Filters Modal */
+        .download-filters-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            backdrop-filter: blur(10px);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .download-filters-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .download-filters-section {
+            background: #2c2c2e;
+            padding: 20px;
+            border-radius: 20px;
+            width: calc(100% - 40px);
+            max-width: 500px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            color: white;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .download-filter-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .download-filter-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .download-filter-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        .download-filter-item .filter-name {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .apply-btn { /* Changed from download-btn */
+            background: #fffc00;
+            color: #000;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
         }
 
         /* Loading spinner */
@@ -325,7 +431,7 @@
         <svg class="snapchat-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.2,9.3c0-3.3-2-6.5-5.3-6.5c-2.4,0-4.1,1.5-4.9,2.9c-0.8-1.4-2.5-2.9-4.9-2.9C3.8,2.8,1.8,6,1.8,9.3 c0,3.2,1.8,5.1,1.8,5.1s-1.8,2.8,0,5.6c1.2,1.9,3.1,1.9,3.1,1.9s-1.8,2.1,0.2,4.3c0.3,0.3,0.6,0.5,0.8,0.5c0.3,0,0.5-0.1,0.8-0.4 c2.3-2.5,0.2-4.3,0.2-4.3s1.9,0,3.1-1.9c1.8-2.8,0-5.6,0-5.6S22.2,12.5,22.2,9.3z M12,14.2c-2.2,0-4-1.8-4-4s1.8-4,4-4s4,1.8,4,4 S14.2,14.2,12,14.2z"/>
         </svg>
-        <span class="snapchat-name">Snapchat</span>
+        <span class="snapchat-name">SnapCrush</span>
     </div>
 
     <div class="status" id="status"><span class="spinner"></span>Initializing...</div>
@@ -333,35 +439,54 @@
     <div class="ui-container">
         <div class="filter-carousel" id="filterCarousel">
             <button class="filter-item active" data-filter="none">⚪</button>
-            <button class="filter-item" data-filter="cat">🐱</button>
-            <button class="filter-item" data-filter="dog">🐶</button>
-            <button class="filter-item" data-filter="bunny">🐰</button>
+            <button class="filter-item" data-filter="cat">🐱<span class="download-badge">+</span></button>
+            <button class="filter-item" data-filter="dog">🐶<span class="download-badge">+</span></button>
+            <button class="filter-item" data-filter="bunny">🐰<span class="download-badge">+</span></button>
         </div>
 
         <div class="action-bar">
-            <button class="action-btn" id="uploadBtn" title="Upload Filters">📂</button>
+            <button class="action-btn" id="downloadBtn" title="Browse & Apply Filters">⏬</button>
+            <button class="action-btn" id="uploadBtn" title="Manage & Upload Filters">📂</button>
             <button class="action-btn" id="captureBtn" title="Take Photo"></button>
             <button class="action-btn" id="flipCameraBtn" title="Flip Camera">🔄</button>
         </div>
     </div>
     
+    <!-- File Upload Modal -->
     <div id="fileInputContainer" class="file-input-container hidden">
-        <div class="file-input-section">
-            <h3>Upload Your Overlay Images</h3>
-            <p>Select PNG images for best results</p>
+        <div class.file-input-section">
+            <h3>Manage & Upload Filters</h3>
+            <p>Click a preview below to remove it. Upload new images to replace a category.</p>
             
+            <div class="preview-images" id="previewImages">
+                <!-- Loaded filter previews will appear here -->
+            </div>
+
             <div class="file-input">
-                <label for="catImages">🐱 Cat Filter Images<input type="file" id="catImages" multiple accept="image/*"></label>
+                <label for="catImages">🐱 Add/Replace Cat Filters<input type="file" id="catImages" multiple accept="image/*"></label>
             </div>
             <div class="file-input">
-                <label for="dogImages">🐶 Dog Filter Images<input type="file" id="dogImages" multiple accept="image/*"></label>
+                <label for="dogImages">🐶 Add/Replace Dog Filters<input type="file" id="dogImages" multiple accept="image/*"></label>
             </div>
             <div class="file-input">
-                <label for="bunnyImages">🐰 Bunny Filter Images<input type="file" id="bunnyImages" multiple accept="image/*"></label>
+                <label for="bunnyImages">🐰 Add/Replace Bunny Filters<input type="file" id="bunnyImages" multiple accept="image/*"></label>
             </div>
             
-            <div class="preview-images" id="previewImages"></div>
             <button id="closeUploadBtn">Close</button>
+        </div>
+    </div>
+    
+    <!-- Download Filters Modal -->
+    <div id="downloadFiltersContainer" class="download-filters-container hidden">
+        <div class="download-filters-section">
+            <h3>Browse & Apply Filters</h3>
+            <p>Click 'Apply' to instantly use a new filter.</p>
+            
+            <div class="filter-grid" id="filterGrid">
+                <!-- Filters will be added dynamically -->
+            </div>
+            
+            <button id="closeDownloadBtn" style="margin-top: 20px;">Close</button>
         </div>
     </div>
     
@@ -382,8 +507,12 @@
                 this.captureBtn = document.getElementById('captureBtn');
                 this.flipCameraBtn = document.getElementById('flipCameraBtn');
                 this.uploadBtn = document.getElementById('uploadBtn');
+                this.downloadBtn = document.getElementById('downloadBtn');
                 this.closeUploadBtn = document.getElementById('closeUploadBtn');
+                this.closeDownloadBtn = document.getElementById('closeDownloadBtn');
                 this.fileInputContainer = document.getElementById('fileInputContainer');
+                this.downloadFiltersContainer = document.getElementById('downloadFiltersContainer');
+                this.filterGrid = document.getElementById('filterGrid');
                 this.cameraContainer = document.querySelector('.camera-container');
                 
                 this.currentFilter = 'none';
@@ -393,11 +522,27 @@
                 this.filterImages = { cat: [], dog: [], bunny: [] };
                 this.isInitialized = false;
                 this.lastFrameTime = 0;
-                this.frameInterval = 1000 / 30; // Target 30fps
+                this.frameInterval = 1000 / 30;
                 this.rafId = null;
                 this.videoAspectRatio = 0;
                 this.canvasAspectRatio = 0;
                 
+                this.demoFilters = {
+                    cat: [
+                        { name: "Blushy Kitty", url: "./src/filters/1 (1).png" },
+                        { name: "Laser Whiskers", url: "./src/filters/1 (6).png" },
+                        { name: "The OG Catfish", url: "./src/filters/1 (7).png" }
+                    ],
+                    dog: [
+                        { name: "Classic Dog", url: "./src/filters/13 (1).png" },
+                        { name: "Doodle Dog", url: "./src/filters/1 (12).png" }
+                    ],
+                    bunny: [
+                        { name: "Bunny", url: "./src/filters/1 (8).png" },
+                        { name: "Bunny", url: "./src/filters/13 (2).png" }
+                    ]
+                };
+
                 this.onResults = this.onResults.bind(this);
                 this.processFrame = this.processFrame.bind(this);
                 this.handleResize = this.handleResize.bind(this);
@@ -407,17 +552,104 @@
 
             async initializeApp() {
                 try {
+                    await this.preloadCustomFilter();
                     this.setupFileInputs();
+                    this.setupDownloadFilters();
                     await this.setupMediaPipe();
                     await this.setupCamera(this.currentFacingMode);
                     this.setupEventListeners();
                     window.addEventListener('resize', this.handleResize);
-                    this.updateStatus('✅ Ready! Select a filter or upload your own.');
+                    this.updateStatus('✅ Ready! Select a filter or download more.');
                     this.isInitialized = true;
                 } catch (error) {
                     console.error('Initialization error:', error);
                     this.updateStatus(`❌ Error: ${error.message}`);
                 }
+            }
+            
+            async preloadCustomFilter() {
+                try {
+                    const catImg = await this.loadImage('path/folder/cat.png');
+                    this.filterImages.cat.push(catImg);
+                    this.addPreviewImage(catImg, 'cat');
+                    this.updateStatus('✅ Preloaded demo cat filter');
+                } catch (error) {
+                    console.warn('Could not preload custom filter from "path/folder/cat.png". It may not exist.');
+                }
+            }
+            
+            // --- MODIFIED FUNCTION ---
+            // Now implements "replace on click" behavior
+            setupDownloadFilters() {
+                this.filterGrid.innerHTML = '';
+                
+                Object.entries(this.demoFilters).forEach(([filterType, filters]) => {
+                    filters.forEach(filter => {
+                        const filterItem = document.createElement('div');
+                        filterItem.className = 'download-filter-item';
+                        filterItem.innerHTML = `
+                            <img src="${filter.url}" alt="${filter.name}" onerror="this.style.display='none'">
+                            <div class="filter-name">${filter.name}</div>
+                            <button class="apply-btn" data-url="${filter.url}" data-filter="${filterType}">Apply</button>
+                        `;
+                        this.filterGrid.appendChild(filterItem);
+                    });
+                });
+                
+                this.filterGrid.querySelectorAll('.apply-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const url = e.target.dataset.url;
+                        const filterType = e.target.dataset.filter;
+                        this.updateStatus(`Applying ${filterType} filter...`);
+                        
+                        try {
+                            const img = await this.loadImage(url);
+                            
+                            // --- REPLACE BEHAVIOR ---
+                            // Replace the entire array for this filter type with the new image.
+                            this.filterImages[filterType] = [img];
+                            
+                            // Update the management panel to reflect this replacement.
+                            this.updatePreviewPanel(filterType);
+                            
+                            // Programmatically click the carousel item to switch to it.
+                            const carouselButton = document.querySelector(`.filter-item[data-filter="${filterType}"]`);
+                            if (carouselButton) {
+                                carouselButton.click();
+                            }
+                            
+                            // Close the modal and show success.
+                            this.toggleDownloadPanel(false);
+                            this.updateStatus(`✅ New ${filterType} filter applied!`);
+
+                        } catch (error) {
+                            console.error('Error applying filter:', error);
+                            this.updateStatus('❌ Failed to apply filter.');
+                        }
+                    });
+                });
+            }
+
+            // --- NEW HELPER FUNCTION ---
+            // Updates the preview panel to accurately reflect the current state of a filter category.
+            updatePreviewPanel(filterType) {
+                // 1. Remove all existing preview images for this category.
+                this.previewContainer.querySelectorAll(`[data-filter-type="${filterType}"]`).forEach(el => el.remove());
+
+                // 2. Add the current images back. After replacement, this will often be just one.
+                this.filterImages[filterType].forEach(img => {
+                    this.addPreviewImage(img, filterType);
+                });
+            }
+
+            loadImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
             }
 
             handleResize() {
@@ -427,22 +659,17 @@
             adjustVideoSize() {
                 if (!this.video.videoWidth || !this.video.videoHeight) return;
                 
-                // Calculate aspect ratios
                 this.videoAspectRatio = this.video.videoWidth / this.video.videoHeight;
                 const containerAspectRatio = this.cameraContainer.clientWidth / this.cameraContainer.clientHeight;
                 
-                // Set canvas dimensions to match video aspect ratio
                 if (containerAspectRatio > this.videoAspectRatio) {
-                    // Container is wider than video (pillarbox)
                     this.canvas.style.width = 'auto';
                     this.canvas.style.height = '100%';
                 } else {
-                    // Container is taller than video (letterbox)
                     this.canvas.style.width = '100%';
                     this.canvas.style.height = 'auto';
                 }
                 
-                // Update canvas drawing dimensions to match video resolution
                 this.canvas.width = this.video.videoWidth;
                 this.canvas.height = this.video.videoHeight;
             }
@@ -459,12 +686,11 @@
                 const files = Array.from(event.target.files);
                 if (files.length === 0) return;
                 
-                this.updateStatus(`Loading ${filterType} images...`);
+                this.updateStatus(`Replacing ${filterType} images...`);
                 try {
                     this.filterImages[filterType] = [];
                     this.previewContainer.querySelectorAll(`[data-filter-type="${filterType}"]`).forEach(el => el.remove());
 
-                    // Load first 3 images only for performance
                     const filesToLoad = files.slice(0, 3);
                     
                     const loadPromises = filesToLoad.map(file => {
@@ -478,7 +704,7 @@
                     });
 
                     await Promise.all(loadPromises);
-                    this.updateStatus(`✅ Loaded ${filesToLoad.length} ${filterType} images.`);
+                    this.updateStatus(`✅ Replaced ${filterType} images.`);
                 } catch (error) {
                     console.error('Error loading images:', error);
                     this.updateStatus('❌ Error loading images.');
@@ -498,14 +724,32 @@
                     reader.readAsDataURL(file);
                 });
             }
-
+            
             addPreviewImage(img, filterType) {
                 const previewImg = document.createElement('img');
                 previewImg.src = img.src;
                 previewImg.className = 'preview-image';
-                previewImg.title = `${filterType} overlay`;
+                previewImg.title = `Click to remove this ${filterType} overlay`;
                 previewImg.dataset.filterType = filterType;
+
+                previewImg.addEventListener('click', () => {
+                    this.removeFilterImage(filterType, img.src);
+                });
+
                 this.previewContainer.appendChild(previewImg);
+            }
+            
+            removeFilterImage(filterType, imgSrc) {
+                const imageIndex = this.filterImages[filterType].findIndex(img => img.src === imgSrc);
+
+                if (imageIndex > -1) {
+                    this.filterImages[filterType].splice(imageIndex, 1);
+                    const previewImgEl = this.previewContainer.querySelector(`img[src="${imgSrc}"]`);
+                    if (previewImgEl) {
+                        previewImgEl.remove();
+                    }
+                    this.updateStatus(`✅ ${filterType} overlay removed.`);
+                }
             }
 
             async setupMediaPipe() {
@@ -550,10 +794,7 @@
 
                     return new Promise((resolve) => {
                         this.video.onloadedmetadata = () => {
-                            // Set canvas mirror based on camera
                             this.canvas.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-                            
-                            // Adjust video and canvas sizes
                             this.adjustVideoSize();
                             
                             this.camera = new Camera(this.video, {
@@ -586,26 +827,40 @@
                         this.currentFilter = button.dataset.filter;
 
                         if (this.currentFilter !== 'none' && this.filterImages[this.currentFilter].length === 0) {
-                            this.updateStatus(`⚠️ No ${this.currentFilter} images loaded. Upload some first!`);
+                            this.updateStatus(`⚠️ No ${this.currentFilter} images loaded. Apply or upload one first!`);
                         }
                     }
                 });
                 
-                // Click events
                 this.captureBtn.addEventListener('click', () => this.takePicture());
                 this.flipCameraBtn.addEventListener('click', () => this.switchCamera());
                 this.uploadBtn.addEventListener('click', () => this.toggleUploadPanel(true));
+                this.downloadBtn.addEventListener('click', () => this.toggleDownloadPanel(true));
                 this.closeUploadBtn.addEventListener('click', () => this.toggleUploadPanel(false));
+                this.closeDownloadBtn.addEventListener('click', () => this.toggleDownloadPanel(false));
                 
-                // Touch events with better mobile support
                 const touchHandler = (e) => {
                     e.preventDefault();
                     e.target.click();
                 };
                 
-                [this.captureBtn, this.flipCameraBtn, this.uploadBtn].forEach(btn => {
+                [this.captureBtn, this.flipCameraBtn, this.uploadBtn, this.downloadBtn].forEach(btn => {
                     btn.addEventListener('touchstart', touchHandler, { passive: false });
                 });
+            }
+            
+            toggleUploadPanel(show) {
+                this.fileInputContainer.classList.toggle('hidden', !show);
+                if (show) {
+                    this.downloadFiltersContainer.classList.add('hidden');
+                }
+            }
+            
+            toggleDownloadPanel(show) {
+                this.downloadFiltersContainer.classList.toggle('hidden', !show);
+                if (show) {
+                    this.fileInputContainer.classList.add('hidden');
+                }
             }
             
             async switchCamera() {
@@ -621,40 +876,19 @@
             }
             
             takePicture() {
-                // Create a temporary canvas for the final image
                 const tempCanvas = document.createElement('canvas');
-                
-                // Maintain aspect ratio in the captured image
-                if (this.videoAspectRatio > 1) {
-                    // Landscape
-                    tempCanvas.width = this.canvas.width;
-                    tempCanvas.height = this.canvas.width / this.videoAspectRatio;
-                } else {
-                    // Portrait
-                    tempCanvas.width = this.canvas.height * this.videoAspectRatio;
-                    tempCanvas.height = this.canvas.height;
-                }
+                tempCanvas.width = this.canvas.width;
+                tempCanvas.height = this.canvas.height;
                 
                 const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(this.canvas, 0, 0);
                 
-                // Draw the current canvas content to the temp canvas with correct aspect ratio
-                tempCtx.drawImage(
-                    this.canvas, 
-                    0, 0, this.canvas.width, this.canvas.height,
-                    0, 0, tempCanvas.width, tempCanvas.height
-                );
-                
-                // Create download link
                 const link = document.createElement('a');
                 link.download = `snapchat-filter-photo-${Date.now()}.png`;
                 link.href = tempCanvas.toDataURL('image/png');
                 link.click();
                 
                 this.updateStatus('✅ Photo saved!');
-            }
-
-            toggleUploadPanel(show) {
-                this.fileInputContainer.classList.toggle('hidden', !show);
             }
 
             onResults(results) {
@@ -668,23 +902,12 @@
             processFrame(results) {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                // Draw the video frame maintaining aspect ratio
                 if (this.videoAspectRatio > (this.canvas.width / this.canvas.height)) {
-                    // Video is wider than canvas (letterbox)
                     const scaledHeight = this.canvas.width / this.videoAspectRatio;
-                    this.ctx.drawImage(
-                        results.image, 
-                        0, (this.canvas.height - scaledHeight) / 2, 
-                        this.canvas.width, scaledHeight
-                    );
+                    this.ctx.drawImage(results.image, 0, (this.canvas.height - scaledHeight) / 2, this.canvas.width, scaledHeight);
                 } else {
-                    // Video is taller than canvas (pillarbox)
                     const scaledWidth = this.canvas.height * this.videoAspectRatio;
-                    this.ctx.drawImage(
-                        results.image, 
-                        (this.canvas.width - scaledWidth) / 2, 0,
-                        scaledWidth, this.canvas.height
-                    );
+                    this.ctx.drawImage(results.image, (this.canvas.width - scaledWidth) / 2, 0, scaledWidth, this.canvas.height);
                 }
 
                 if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && 
@@ -697,35 +920,20 @@
                 const images = this.filterImages[this.currentFilter];
                 if (!images || images.length === 0) return;
 
-                // Cache frequently used landmarks
                 const leftEye = landmarks[33];
                 const rightEye = landmarks[263];
                 const noseTip = landmarks[1];
                 const leftFace = landmarks[234];
                 const rightFace = landmarks[454];
 
-                const angle = Math.atan2(
-                    (rightEye.y - leftEye.y) * this.canvas.height, 
-                    (rightEye.x - leftEye.x) * this.canvas.width
-                );
-                
-                const faceWidth = Math.hypot(
-                    (rightFace.x - leftFace.x) * this.canvas.width, 
-                    (rightFace.y - leftFace.y) * this.canvas.height
-                );
+                const angle = Math.atan2((rightEye.y - leftEye.y) * this.canvas.height, (rightEye.x - leftEye.x) * this.canvas.width);
+                const faceWidth = Math.hypot((rightFace.x - leftFace.x) * this.canvas.width, (rightFace.y - leftFace.y) * this.canvas.height);
                 
                 const facePoints = {
-                    noseTip: { 
-                        x: noseTip.x * this.canvas.width, 
-                        y: noseTip.y * this.canvas.height 
-                    },
-                    betweenEyes: { 
-                        x: ((leftEye.x + rightEye.x) / 2) * this.canvas.width, 
-                        y: ((leftEye.y + rightEye.y) / 2) * this.canvas.height 
-                    },
+                    noseTip: { x: noseTip.x * this.canvas.width, y: noseTip.y * this.canvas.height },
+                    betweenEyes: { x: ((leftEye.x + rightEye.x) / 2) * this.canvas.width, y: ((leftEye.y + rightEye.y) / 2) * this.canvas.height },
                 };
                 
-                // Limit to 3 overlay images for performance
                 const imagesToDraw = images.slice(0, 3);
                 imagesToDraw.forEach((img, index) => {
                     this.drawOverlayImage(img, facePoints, faceWidth, angle, index);
@@ -737,17 +945,17 @@
                 
                 let scale, anchor, offsetX, offsetY, customScale;
                 
-                if (imageIndex === 0) { // Ears/Forehead
+                if (imageIndex === 0) {
                     anchor = facePoints.betweenEyes;
                     customScale = 1.6;
                     offsetX = 0;
                     offsetY = -faceWidth * 0.25;
-                } else if (imageIndex === 1) { // Nose/Cheeks
+                } else if (imageIndex === 1) {
                     anchor = facePoints.betweenEyes;
                     customScale = 1.3;
                     offsetX = 0;
                     offsetY = faceWidth * 0.15;
-                } else { // Generic
+                } else {
                     anchor = facePoints.noseTip;
                     customScale = 0.5;
                     const placementAngle = (imageIndex - 2) * (Math.PI / 2) + Math.PI / 4;
@@ -761,13 +969,7 @@
                 
                 this.ctx.translate(anchor.x, anchor.y);
                 this.ctx.rotate(angle);
-                this.ctx.drawImage(
-                    img, 
-                    offsetX - scaledWidth / 2, 
-                    offsetY - scaledHeight / 2, 
-                    scaledWidth, 
-                    scaledHeight
-                );
+                this.ctx.drawImage(img, offsetX - scaledWidth / 2, offsetY - scaledHeight / 2, scaledWidth, scaledHeight);
                 this.ctx.restore();
             }
 
@@ -787,11 +989,9 @@
             }
         }
 
-        // Start the app when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             const app = new FaceFilterApp();
             
-            // Clean up on page unload
             window.addEventListener('beforeunload', () => {
                 if (app.video.srcObject) {
                     app.video.srcObject.getTracks().forEach(track => track.stop());
